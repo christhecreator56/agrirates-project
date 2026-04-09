@@ -58,7 +58,8 @@ const CATEGORIES = [
 
 const MARKETS = [
   'All Markets', 'Azadpur Mandi, Delhi', 'Lasalgaon, Maharashtra', 
-  'Agra, UP', 'Sehore, MP', 'Karnal, Haryana', 'Nashik, MH', 'Guntur, AP'
+  'Agra, UP', 'Sehore, MP', 'Karnal, Haryana', 'Nashik, MH', 'Guntur, AP',
+  'Chennai, Tamil Nadu'
 ];
 
 // --- Sub-Component: Login ---
@@ -83,6 +84,7 @@ const LoginPage = ({ onLogin }) => {
           </div>
           <h1 className="text-3xl font-black text-slate-900">AgriRates</h1>
           <p className="text-slate-500 font-medium mt-2 text-center">Smart Price Intelligence for Farmers</p>
+          <p className="text-emerald-700 font-semibold mt-1 text-sm">Chennai, Tamil Nadu</p>
         </div>
 
         <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-6 flex items-start gap-3">
