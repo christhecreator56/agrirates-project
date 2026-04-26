@@ -22,7 +22,8 @@ import {
   User,
   Info,
   Coffee,
-  Grape
+  Grape,
+  X
 } from 'lucide-react';
 
 // --- Expanded Market Data ---
@@ -61,6 +62,20 @@ const MARKETS = [
   'Agra, UP', 'Sehore, MP', 'Karnal, Haryana', 'Nashik, MH', 'Guntur, AP',
   'Chennai, Tamil Nadu'
 ];
+
+const buildPriceHistory = (item, points = 10) => {
+  const history = [];
+  const trendBias = item.trend === 'up' ? 1 : item.trend === 'down' ? -1 : 0;
+
+  for (let i = points - 1; i >= 0; i -= 1) {
+    const drift = i * 0.006 * item.price * trendBias;
+    const wave = Math.sin((item.id + i) * 0.9) * item.price * 0.012;
+    const value = Math.max(1, item.price - drift + wave);
+    history.push(Number(value.toFixed(2)));
+  }
+
+  return history;
+};
 
 // --- Sub-Component: Login ---
 const LoginPage = ({ onLogin }) => {
@@ -134,6 +149,7 @@ const Dashboard = ({ onLogout }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMarket, setSelectedMarket] = useState('All Markets');
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [selectedStock, setSelectedStock] = useState(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -162,6 +178,11 @@ const Dashboard = ({ onLogout }) => {
       return matchesCategory && matchesSearch && matchesMarket;
     });
   }, [marketData, activeCategory, searchQuery, selectedMarket]);
+
+  const selectedStockHistory = useMemo(() => {
+    if (!selectedStock) return [];
+    return buildPriceHistory(selectedStock, 12);
+  }, [selectedStock]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20">
@@ -259,7 +280,11 @@ const Dashboard = ({ onLogout }) => {
         <main className="flex-grow">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
             {filteredData.length > 0 ? filteredData.map(item => (
-              <div key={item.id} className="group bg-white/90 backdrop-blur-md border border-slate-200/60 rounded-[2rem] p-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+              <div
+                key={item.id}
+                onClick={() => setSelectedStock(item)}
+                className="group bg-white/90 backdrop-blur-md border border-slate-200/60 rounded-[2rem] p-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+              >
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-slate-50 group-hover:bg-emerald-50 rounded-2xl flex items-center justify-center text-3xl transition-colors">{item.icon}</div>
@@ -275,7 +300,7 @@ const Dashboard = ({ onLogout }) => {
 
                 <div className="flex items-end justify-between">
                   <div>
-                    <span className="text-xs font-bold text-slate-400 block mb-1">CURRENT RATE</span>
+                    <span className="text-xs font-bold text-slate-400 block mb-1">CURRENT STOCK PRICE</span>
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-black text-slate-900">₹{item.price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                       <span className="text-sm font-bold text-slate-400">/{item.unit}</span>
@@ -292,7 +317,13 @@ const Dashboard = ({ onLogout }) => {
                     <MapPin size={14} className="text-emerald-600" />
                     <span className="text-xs font-bold truncate max-w-[150px]">{item.market}</span>
                   </div>
-                  <button className="p-2 bg-slate-50 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedStock(item);
+                    }}
+                    className="p-2 bg-slate-50 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all"
+                  >
                     <ChevronRight size={18} />
                   </button>
                 </div>
@@ -309,6 +340,84 @@ const Dashboard = ({ onLogout }) => {
           </div>
         </main>
       </div>
+
+      {selectedStock && (
+        <div
+          onClick={() => setSelectedStock(null)}
+          className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 sm:p-8"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Rate Trend</p>
+                <h3 className="text-2xl font-black text-slate-900 mt-1">{selectedStock.name}</h3>
+                <p className="text-sm text-slate-500 mt-1">{selectedStock.market}</p>
+              </div>
+              <button
+                onClick={() => setSelectedStock(null)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+              <svg viewBox="0 0 600 220" className="w-full h-56">
+                {selectedStockHistory.map((_, i) => (
+                  <line
+                    key={`grid-${i}`}
+                    x1={40 + i * 48}
+                    y1={20}
+                    x2={40 + i * 48}
+                    y2={180}
+                    stroke="#e2e8f0"
+                    strokeWidth="1"
+                    strokeDasharray="4 4"
+                  />
+                ))}
+                <line x1="40" y1="180" x2="560" y2="180" stroke="#94a3b8" strokeWidth="1.5" />
+                <line x1="40" y1="20" x2="40" y2="180" stroke="#94a3b8" strokeWidth="1.5" />
+                <polyline
+                  fill="none"
+                  stroke={selectedStock.trend === 'down' ? '#e11d48' : '#059669'}
+                  strokeWidth="4"
+                  points={selectedStockHistory
+                    .map((value, i) => {
+                      const min = Math.min(...selectedStockHistory);
+                      const max = Math.max(...selectedStockHistory);
+                      const range = max - min || 1;
+                      const x = 40 + i * 48;
+                      const y = 180 - ((value - min) / range) * 160;
+                      return `${x},${y}`;
+                    })
+                    .join(' ')}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+
+              <div className="mt-3 flex items-center justify-between text-sm font-semibold">
+                <span className="text-slate-500">Previous</span>
+                <span className={selectedStock.trend === 'down' ? 'text-rose-600' : selectedStock.trend === 'up' ? 'text-emerald-600' : 'text-slate-600'}>
+                  {selectedStock.trend === 'up' ? 'Rate Increased' : selectedStock.trend === 'down' ? 'Rate Reduced' : 'No Major Change'}
+                </span>
+                <span className="text-slate-500">Current</span>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-sm text-slate-500">Current Stock Price</p>
+              <p className="text-xl font-black text-slate-900">
+                ₹{selectedStock.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <span className="text-sm text-slate-500 font-bold">/{selectedStock.unit}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Mobile Bottom Nav (Simulated) */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-6 py-3 flex justify-between items-center z-50">
