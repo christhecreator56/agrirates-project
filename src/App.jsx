@@ -63,18 +63,32 @@ const MARKETS = [
   'Chennai, Tamil Nadu'
 ];
 
-const buildPriceHistory = (item, points = 10) => {
+const buildPriceHistory = (item, points = 12) => {
   const history = [];
   const trendBias = item.trend === 'up' ? 1 : item.trend === 'down' ? -1 : 0;
 
   for (let i = points - 1; i >= 0; i -= 1) {
-    const drift = i * 0.006 * item.price * trendBias;
-    const wave = Math.sin((item.id + i) * 0.9) * item.price * 0.012;
-    const value = Math.max(1, item.price - drift + wave);
+    // Simulated monthly series for the previous 12 months.
+    const drift = i * 0.008 * item.price * trendBias;
+    const seasonality = Math.sin((item.id + i) * 0.8) * item.price * 0.02;
+    const noise = Math.cos((item.id * 2 + i) * 0.6) * item.price * 0.005;
+    const value = Math.max(1, item.price - drift + seasonality + noise);
     history.push(Number(value.toFixed(2)));
   }
 
   return history;
+};
+
+const buildLastYearLabels = () => {
+  const labels = [];
+  const now = new Date();
+
+  for (let i = 11; i >= 0; i -= 1) {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    labels.push(monthDate.toLocaleString('en-IN', { month: 'short' }));
+  }
+
+  return labels;
 };
 
 // --- Sub-Component: Login ---
@@ -183,6 +197,10 @@ const Dashboard = ({ onLogout }) => {
     if (!selectedStock) return [];
     return buildPriceHistory(selectedStock, 12);
   }, [selectedStock]);
+
+  const previousYearLabels = useMemo(() => buildLastYearLabels(), []);
+  const previousYearPrice = selectedStockHistory.length ? selectedStockHistory[0] : 0;
+  const latestGraphPrice = selectedStockHistory.length ? selectedStockHistory[selectedStockHistory.length - 1] : 0;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20">
@@ -352,9 +370,9 @@ const Dashboard = ({ onLogout }) => {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Rate Trend</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Previous Year Rate Trend</p>
                 <h3 className="text-2xl font-black text-slate-900 mt-1">{selectedStock.name}</h3>
-                <p className="text-sm text-slate-500 mt-1">{selectedStock.market}</p>
+                <p className="text-sm text-slate-500 mt-1">{selectedStock.market} • Last 12 months</p>
               </div>
               <button
                 onClick={() => setSelectedStock(null)}
@@ -365,6 +383,21 @@ const Dashboard = ({ onLogout }) => {
             </div>
 
             <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+              <div className="mb-4 grid grid-cols-2 gap-3">
+                <div className="bg-white border border-slate-200 rounded-xl px-3 py-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Previous Year Price</p>
+                  <p className="text-lg font-black text-slate-900">
+                    ₹{previousYearPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl px-3 py-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Current Price (Graph)</p>
+                  <p className="text-lg font-black text-emerald-700">
+                    ₹{latestGraphPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+
               <svg viewBox="0 0 600 220" className="w-full h-56">
                 {selectedStockHistory.map((_, i) => (
                   <line
@@ -397,14 +430,38 @@ const Dashboard = ({ onLogout }) => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
+                {selectedStockHistory.map((value, i) => {
+                  const min = Math.min(...selectedStockHistory);
+                  const max = Math.max(...selectedStockHistory);
+                  const range = max - min || 1;
+                  const x = 40 + i * 48;
+                  const y = 180 - ((value - min) / range) * 160;
+                  return <circle key={`dot-${i}`} cx={x} cy={y} r="3.5" fill={selectedStock.trend === 'down' ? '#e11d48' : '#059669'} />;
+                })}
+                {selectedStockHistory.length > 0 && (
+                  <>
+                    <text x="40" y="16" fill="#475569" fontSize="11" fontWeight="700">
+                      ₹{previousYearPrice.toFixed(2)}
+                    </text>
+                    <text x="500" y="16" fill="#047857" fontSize="11" fontWeight="700">
+                      ₹{latestGraphPrice.toFixed(2)}
+                    </text>
+                  </>
+                )}
               </svg>
 
+              <div className="mt-3 grid grid-cols-6 gap-2 text-[11px] font-semibold text-slate-500">
+                {previousYearLabels.filter((_, index) => index % 2 === 0).map((month) => (
+                  <span key={month} className="text-center">{month}</span>
+                ))}
+              </div>
+
               <div className="mt-3 flex items-center justify-between text-sm font-semibold">
-                <span className="text-slate-500">Previous</span>
+                <span className="text-slate-500">12 Months Ago</span>
                 <span className={selectedStock.trend === 'down' ? 'text-rose-600' : selectedStock.trend === 'up' ? 'text-emerald-600' : 'text-slate-600'}>
                   {selectedStock.trend === 'up' ? 'Rate Increased' : selectedStock.trend === 'down' ? 'Rate Reduced' : 'No Major Change'}
                 </span>
-                <span className="text-slate-500">Current</span>
+                <span className="text-slate-500">Now</span>
               </div>
             </div>
 
